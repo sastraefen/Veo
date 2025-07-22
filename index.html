@@ -56,17 +56,6 @@
         .btn-gemini:hover {
             background-color: #2563eb;
         }
-        .accordion-content {
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.3s ease-out;
-        }
-        .accordion-button svg.arrow {
-            transition: transform 0.3s ease;
-        }
-        .accordion-button.active svg.arrow {
-            transform: rotate(180deg);
-        }
         .form-input, .form-select {
             background-color: #393a47;
             border: 1px solid #4a4b57;
@@ -115,10 +104,10 @@
                     <h2 class="text-lg font-semibold text-center mb-3">Deskripsikan Gambar (1:1)</h2>
                     <div class="space-y-4">
                         <div>
-                            <label for="image-upload-subject" class="btn-secondary w-full text-center block py-2 px-4 rounded-lg cursor-pointer">Unggah Objek</label>
-                            <input type="file" id="image-upload-subject" class="hidden" accept="image/*" data-type="subject">
-                            <span id="file-name-subject" class="text-xs text-gray-400 mt-2 block text-center"></span>
-                            <button id="gemini-btn-subject" class="btn-primary w-full mt-2 py-2 rounded-lg" disabled>Deskripsikan Objek</button>
+                            <label for="image-upload-action" class="btn-secondary w-full text-center block py-2 px-4 rounded-lg cursor-pointer">Unggah Objek/Aktor</label>
+                            <input type="file" id="image-upload-action" class="hidden" accept="image/*" data-type="action">
+                            <span id="file-name-action" class="text-xs text-gray-400 mt-2 block text-center"></span>
+                            <button id="gemini-btn-action" class="btn-primary w-full mt-2 py-2 rounded-lg" disabled>Deskripsikan Aksi</button>
                         </div>
                         <div>
                             <label for="image-upload-setting" class="btn-secondary w-full text-center block py-2 px-4 rounded-lg cursor-pointer">Unggah Tempat</label>
@@ -134,8 +123,8 @@
             <div id="manual-input-section">
                 <div class="card p-4 rounded-xl mb-6">
                     <h2 class="text-lg font-semibold text-center mb-3">Isi Manual</h2>
-                    <div id="accordion-container" class="space-y-2">
-                        <!-- Accordion items will be generated here -->
+                    <div id="form-container" class="space-y-4">
+                        <!-- Form fields will be generated here -->
                     </div>
                      <button id="gemini-surprise-btn" class="btn-primary w-full mt-4 py-3 rounded-lg font-bold flex items-center justify-center gap-2">
                         <span id="gemini-surprise-text">Generate Pilihan</span>
@@ -174,24 +163,29 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             // Data and DOM elements setup
-            const accordionData = [
-                { id: 'subject', title: 'Aktor Utama yang Terjadi', placeholder: 'Contoh: seekor naga emas raksasa' },
-                { id: 'action', title: 'Gerakan (Aksi)', placeholder: 'Contoh: terbang di atas pegunungan' },
-                { id: 'setting', title: 'Tempat (Latar Belakang)', placeholder: 'Contoh: kerajaan fantasi saat senja' },
-                { id: 'style', title: 'Gaya Visual', placeholder: 'Contoh: sinematik, fotorealistis' },
-                { id: 'shot', title: 'Jenis Sudut Kamera', placeholder: 'Contoh: wide shot, aerial view' },
-                { id: 'lighting', title: 'Tipe Pencahayaan', placeholder: 'Contoh: golden hour, dramatis' },
-                { id: 'quality', title: 'Kualitas yang Diharapkan', placeholder: 'Contoh: sangat detail, 8K' },
-                { id: 'negative_prompt', title: 'Hal yang Dihilangkan', placeholder: 'Contoh: buram, kualitas rendah' }
+            const formData = [
+                { id: 'action', title: 'Aksi (Apa yang terjadi)', placeholder: 'Contoh: seorang ksatria membaca buku di bawah pohon' },
+                { id: 'ekspresi', title: 'Ekspresi (Emosi)', placeholder: 'Contoh: puas dan tersenyum' },
+                { id: 'setting', title: 'Tempat (Latar Belakang)', placeholder: 'Contoh: di hutan lebat' },
+                { id: 'waktu', title: 'Waktu', type: 'select', options: 'waktu' },
+                { id: 'sudut_kamera', title: 'Sudut Kamera', type: 'select', options: 'sudut_kamera' },
+                { id: 'gerakan_kamera', title: 'Gerakan Kamera', type: 'select', options: 'gerakan_kamera' },
+                { id: 'pencahayaan', title: 'Pencahayaan', type: 'select', options: 'pencahayaan' },
+                { id: 'style_video', title: 'Style Video', type: 'select', options: 'style_video' },
+                { id: 'suasana', title: 'Suasana Video', type: 'select', options: 'suasana' },
+                { id: 'backsound', title: 'Backsound (Suara/Musik)', placeholder: 'Contoh: suara alam, musik lo-fi' },
+                { id: 'kalimat', title: 'Kalimat yang Diucapkan (Hanya Adegan Tunggal)', placeholder: 'Contoh: \'Ini hari yang sempurna.\'' }
             ];
             const dropdownOptions = {
-                style: ['Fotorealistis', 'Sinematik', 'Gaya Anime 90-an', 'Gaya Studio Ghibli', 'Lukisan cat air', 'Seni Piksel (Pixel Art)', 'Model 3D', '3D Animation (Gaya Pixar)', 'Vaporwave', 'Cyberpunk', 'Steampunk', 'Fantasi Epik', 'Film Noir', 'Dokumenter Alam', 'Stop Motion', 'Claymation', 'Gaya Wes Anderson', 'Sketsa Hitam Putih', 'Gaya Komik', 'Seni Digital', 'Surealisme', 'Minimalis', 'Gothic'],
-                shot: ['Wide Shot', 'Long Shot', 'Medium Shot', 'Close-up', 'Extreme Close-up', 'Aerial View', 'Drone Shot', 'Tracking Shot', 'Dolly Zoom', 'Point of View (POV)', 'First-Person View (FPV)', 'Over-the-Shoulder Shot', 'Dutch Angle', 'Handheld', 'Worm\'s-eye View', 'Bird\'s-eye View', 'Crane Shot', 'Zoom In/Out', 'Slow Motion', 'Time-lapse'],
-                lighting: ['Golden Hour', 'Blue Hour', 'Pencahayaan Neon', 'Rembrandt Lighting', 'Cahaya Terang Siang Hari', 'Chiaroscuro (Dramatis)', 'Cahaya Bulan Purnama', 'Siluet', 'Pencahayaan Studio', 'Cahaya Lilin', 'Cahaya Api Unggun', 'Cahaya Bawah Air', 'Backlighting', 'High-key Lighting', 'Low-key Lighting', 'Cahaya Lembayung (Twilight)', 'Pencahayaan Volumetrik', 'Lens Flare'],
-                quality: ['Sangat Detail (Hyperdetailed)', 'Resolusi 4K', 'Resolusi 8K', 'Render Unreal Engine', 'Render Octane', 'Fokus Tajam (Sharp Focus)', 'Bokeh', 'Grain Film', 'Lensa Anamorphic', 'Gradasi Warna Profesional', 'Tekstur Realistis', 'Makro (Macro)', 'Ultra-Wide Angle', 'Tilt-Shift', 'Sangat Jernih (Crystal Clear)', 'Gaya Film Vintage', 'Warna Cerah (Vivid Colors)', 'Matte Finish', 'Glossy Finish'],
-                negative_prompt: ['kualitas buruk', 'buram', 'deformasi', 'teks', 'watermark', 'tangan jelek', 'gambar kartun', 'render jelek', 'noise', 'terlalu jenuh']
+                waktu: ['Matahari Terbit (Sunrise)', 'Pagi Hari', 'Siang Hari', 'Sore Hari (Golden Hour)', 'Matahari Terbenam (Sunset)', 'Senja (Twilight)', 'Malam Hari'],
+                sudut_kamera: ['Wide Shot', 'Long Shot', 'Medium Shot', 'Close-up', 'Extreme Close-up', 'Aerial View', 'Drone Shot', 'Point of View (POV)', 'Dutch Angle', 'Worm\'s-eye View', 'Bird\'s-eye View'],
+                gerakan_kamera: ['Statis (Static)', 'Tracking Shot', 'Dolly In/Out', 'Zoom In/Out', 'Crane Shot', 'Handheld', 'Panning', 'Tilting', 'Slow Motion', 'Time-lapse'],
+                pencahayaan: ['Golden Hour', 'Blue Hour', 'Neon', 'Rembrandt', 'Terang Siang Hari', 'Chiaroscuro (Dramatis)', 'Bulan Purnama', 'Siluet', 'Studio', 'Lilin', 'Api Unggun', 'Bawah Air', 'Backlighting', 'High-key', 'Low-key', 'Volumetrik', 'Lens Flare'],
+                style_video: ['Fotorealistis', 'Sinematik', 'Anime 90-an', 'Studio Ghibli', 'Lukisan cat air', 'Pixel Art', '3D Animation', 'Vaporwave', 'Cyberpunk', 'Steampunk', 'Fantasi Epik', 'Film Noir', 'Dokumenter', 'Stop Motion', 'Claymation', 'Gaya Wes Anderson', 'Sketsa'],
+                suasana: ['Misterius', 'Menegangkan', 'Bahagia', 'Sedih', 'Romantis', 'Tenang', 'Nostalgia', 'Ajaib', 'Kacau', 'Futuristik', 'Mencekam (Horror)']
             };
-            const accordionContainer = document.getElementById('accordion-container');
+            
+            const formContainer = document.getElementById('form-container');
             const outputIdTextarea = document.getElementById('output-id');
             const outputEnTextarea = document.getElementById('output-en');
             const geminiSurpriseBtn = document.getElementById('gemini-surprise-btn');
@@ -199,16 +193,18 @@
             const geminiSurpriseLoader = document.getElementById('gemini-surprise-loader');
             const allInputs = [];
             let translationTimeout;
-            let uploadedFiles = { subject: null, setting: null };
+            let uploadedFiles = { action: null, setting: null };
 
             // Function to generate the final prompt text
             function updatePrompt() {
-                const positiveParts = allInputs.filter(input => input.dataset.type === 'positive' && input.value.trim()).map(input => input.value.trim());
-                const negativeInput = allInputs.find(input => input.dataset.type === 'negative');
-                let negativePart = negativeInput ? negativeInput.value.trim() : '';
-                let promptInId = positiveParts.join(', ');
-                if (negativePart) promptInId += ` --no ${negativePart}`;
+                const promptParts = formData.map(item => {
+                    const input = document.getElementById(item.id);
+                    return input ? input.value.trim() : '';
+                }).filter(Boolean);
+                
+                const promptInId = promptParts.join(', ');
                 outputIdTextarea.value = promptInId;
+
                 clearTimeout(translationTimeout);
                 if (promptInId.trim()) {
                     translationTimeout = setTimeout(() => translateAndDisplay(promptInId), 500);
@@ -220,7 +216,7 @@
             // Translate and display
             async function translateAndDisplay(textToTranslate) {
                 outputEnTextarea.value = 'Menerjemahkan...';
-                const promptToGemini = `Translate the following Indonesian video prompt to English. Keep the structure, including any "--no" parts, intact. Text: "${textToTranslate}"`;
+                const promptToGemini = `Translate the following Indonesian video prompt to English. Keep the structure intact. Text: "${textToTranslate}"`;
                  try {
                     const apiKey = ""; 
                     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
@@ -233,21 +229,24 @@
                 } catch (error) { console.error("Translation error:", error); outputEnTextarea.value = 'Error saat menerjemahkan.'; }
             }
 
-            // Dynamically create accordion items
-            accordionData.forEach((item) => {
-                const accordionItem = document.createElement('div');
-                accordionItem.className = 'card rounded-lg overflow-hidden';
-                let dropdownHTML = dropdownOptions[item.id] ? `<select class="form-select dropdown-menu w-full p-2 rounded-md mt-2 text-sm" data-target="${item.id}"><option value="">-- Pilih Opsi Cepat --</option>${dropdownOptions[item.id].map(opt => `<option value="${opt}">${opt}</option>`).join('')}</select>` : '';
-                accordionItem.innerHTML = `<button class="accordion-button w-full flex justify-between items-center p-3 text-left font-semibold"><span class="flex items-center gap-3">${item.title}</span><svg class="arrow w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg></button><div class="accordion-content px-3"><div class="pb-3"><input type="text" id="${item.id}" data-type="${item.id === 'negative_prompt' ? 'positive' : 'positive'}" class="form-input w-full p-2 rounded-md text-sm" placeholder="${item.placeholder}">${dropdownHTML}</div></div>`;
-                accordionContainer.appendChild(accordionItem);
+            // Dynamically create form fields
+            formData.forEach((item) => {
+                const fieldWrapper = document.createElement('div');
+                const label = `<label for="${item.id}" class="block text-sm font-medium text-gray-300 mb-1">${item.title}</label>`;
+                let fieldHTML = '';
+                if (item.type === 'select') {
+                    const optionsHTML = dropdownOptions[item.options].map(opt => `<option value="${opt}">${opt}</option>`).join('');
+                    fieldHTML = `<select id="${item.id}" class="form-select w-full p-2 rounded-md text-sm"><option value="">Pilih ${item.title.toLowerCase()}...</option>${optionsHTML}</select>`;
+                } else {
+                    fieldHTML = `<input type="text" id="${item.id}" class="form-input w-full p-2 rounded-md text-sm" placeholder="${item.placeholder}">`;
+                }
+                fieldWrapper.innerHTML = label + fieldHTML;
+                formContainer.appendChild(fieldWrapper);
                 allInputs.push(document.getElementById(item.id));
             });
             
             // Add all event listeners
             allInputs.forEach(input => input.addEventListener('input', updatePrompt));
-            document.querySelectorAll('.accordion-button').forEach(button => button.addEventListener('click', (e) => { const content = e.currentTarget.nextElementSibling; e.currentTarget.classList.toggle('active'); content.style.maxHeight = content.style.maxHeight ? null : content.scrollHeight + "px"; }));
-            
-            document.querySelectorAll('.dropdown-menu').forEach(dropdown => dropdown.addEventListener('change', function() { const selectedValue = this.value; if (!selectedValue) return; const targetInput = document.getElementById(this.dataset.target); targetInput.value = targetInput.value.trim() ? `${targetInput.value.trim()}, ${selectedValue}` : selectedValue; updatePrompt(); this.selectedIndex = 0; }));
             
             document.querySelectorAll('.copy-btn').forEach(button => button.addEventListener('click', function() { const targetId = this.dataset.target; const textarea = document.getElementById(targetId); if (!textarea.value) return; navigator.clipboard.writeText(textarea.value).then(() => { const feedbackEl = document.querySelector(`[data-feedback-for="${targetId}"]`); const originalText = this.textContent; feedbackEl.textContent = 'Prompt berhasil disalin!'; this.textContent = 'Disalin!'; setTimeout(() => { feedbackEl.textContent = ''; this.textContent = originalText; }, 2000); }); }));
             
@@ -255,10 +254,12 @@
             document.getElementById('reset-btn')?.addEventListener('click', () => { 
                 allInputs.forEach(input => input.value = ''); 
                 updatePrompt(); 
-                ['subject', 'setting'].forEach(type => {
-                    document.getElementById(`file-name-${type}`).textContent = '';
+                ['action', 'setting'].forEach(type => {
+                    const fileNameEl = document.getElementById(`file-name-${type}`);
+                    const geminiBtnEl = document.getElementById(`gemini-btn-${type}`);
+                    if (fileNameEl) fileNameEl.textContent = '';
+                    if (geminiBtnEl) geminiBtnEl.disabled = true;
                     uploadedFiles[type] = null;
-                    document.getElementById(`gemini-btn-${type}`).disabled = true;
                 });
             });
 
@@ -286,15 +287,16 @@
                 const file = uploadedFiles[type];
                 if (!file) return;
                 const button = document.getElementById(`gemini-btn-${type}`);
+                const originalHtml = button.innerHTML;
                 button.innerHTML = `<div class="loader mx-auto"></div>`;
                 button.disabled = true;
 
                 const reader = new FileReader();
                 reader.onloadend = async () => {
                     const base64Data = reader.result.split(',')[1];
-                    const promptToGemini = type === 'subject' 
-                        ? "Describe the main object or character in this image in a concise phrase suitable for a video prompt's 'subject' field. Focus on key visual attributes. Respond in Indonesian."
-                        : "Describe the location or setting in this image in a concise phrase for a video prompt's 'setting' field. Focus on the environment and atmosphere. Respond in Indonesian.";
+                    const promptToGemini = type === 'action' 
+                        ? "Describe the main object and its action in this image in a concise phrase suitable for a video prompt. Respond in Indonesian."
+                        : "Describe the location or setting in this image in a concise phrase for a video prompt. Focus on the environment and atmosphere. Respond in Indonesian.";
                     const payload = { contents: [{ role: "user", parts: [{ text: promptToGemini }, { inlineData: { mimeType: file.type, data: base64Data } }] }] };
                     try {
                         const apiKey = ""; const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
@@ -307,28 +309,37 @@
                             modeTextBtn.click(); // Switch back to text mode to see the result
                         } else { throw new Error("No valid description received."); }
                     } catch (error) { console.error(`Error calling Gemini for ${type}:`, error); alert(`Gagal menganalisis gambar.`);
-                    } finally { button.innerHTML = type === 'subject' ? 'Deskripsikan Objek' : 'Deskripsikan Tempat'; }
+                    } finally { 
+                        button.innerHTML = originalHtml;
+                        // Do not re-enable the button here, let the user upload a new file
+                    }
                 };
                 reader.readAsDataURL(file);
             }
 
             // Event listeners for image uploads
-            ['subject', 'setting'].forEach(type => {
-                document.getElementById(`image-upload-${type}`).addEventListener('change', (e) => {
-                    if (e.target.files && e.target.files[0]) {
-                        uploadedFiles[type] = e.target.files[0];
-                        document.getElementById(`file-name-${type}`).textContent = `File: ${uploadedFiles[type].name}`;
-                        document.getElementById(`gemini-btn-${type}`).disabled = false;
-                    }
-                });
-                document.getElementById(`gemini-btn-${type}`).addEventListener('click', () => describeImageWithGemini(type));
+            document.getElementById(`image-upload-action`).addEventListener('change', (e) => {
+                if (e.target.files && e.target.files[0]) {
+                    uploadedFiles['action'] = e.target.files[0];
+                    document.getElementById(`file-name-action`).textContent = `File: ${uploadedFiles['action'].name}`;
+                    document.getElementById(`gemini-btn-action`).disabled = false;
+                }
             });
+            document.getElementById(`image-upload-setting`).addEventListener('change', (e) => {
+                 if (e.target.files && e.target.files[0]) {
+                    uploadedFiles['setting'] = e.target.files[0];
+                    document.getElementById(`file-name-setting`).textContent = `File: ${uploadedFiles['setting'].name}`;
+                    document.getElementById(`gemini-btn-setting`).disabled = false;
+                }
+            });
+            document.getElementById(`gemini-btn-action`).addEventListener('click', () => describeImageWithGemini('action'));
+            document.getElementById(`gemini-btn-setting`).addEventListener('click', () => describeImageWithGemini('setting'));
             
             // Gemini Surprise Feature Logic
             geminiSurpriseBtn.addEventListener('click', async () => {
                 geminiSurpriseBtn.disabled = true; geminiSurpriseText.textContent = ''; geminiSurpriseLoader.classList.remove('hidden');
-                const promptToGemini = `You are a creative assistant for a text-to-video AI. Generate a complete, highly creative, visually stunning, and unexpected video prompt idea. Provide the output as a single JSON object with these exact keys: "subject", "action", "setting", "style", "shot", "lighting", "quality". All values must be in Indonesian.`;
-                const payload = { contents: [{ role: "user", parts: [{ text: promptToGemini }] }], generationConfig: { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { subject: { type: "STRING" }, action: { type: "STRING" }, setting: { type: "STRING" }, style: { type: "STRING" }, shot: { type: "STRING" }, lighting: { type: "STRING" }, quality: { type: "STRING" } } } } };
+                const promptToGemini = `You are a creative assistant for a text-to-video AI. Generate a complete, highly creative, visually stunning, and unexpected video prompt idea. Provide the output as a single JSON object with these exact keys: "action", "ekspresi", "setting", "waktu", "sudut_kamera", "gerakan_kamera", "pencahayaan", "style_video", "suasana", "backsound", "kalimat". All values must be in Indonesian.`;
+                const payload = { contents: [{ role: "user", parts: [{ text: promptToGemini }] }], generationConfig: { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { action: { type: "STRING" }, ekspresi: { type: "STRING" }, setting: { type: "STRING" }, waktu: { type: "STRING" }, sudut_kamera: { type: "STRING" }, gerakan_kamera: { type: "STRING" }, pencahayaan: { type: "STRING" }, style_video: { type: "STRING" }, suasana: { type: "STRING" }, backsound: { type: "STRING" }, kalimat: { type: "STRING" } } } } };
                 try {
                     const apiKey = ""; const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
                     const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
