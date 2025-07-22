@@ -23,8 +23,12 @@
             color: white;
             transition: background-color 0.2s;
         }
-        .btn-primary:hover {
+        .btn-primary:hover:not(:disabled) {
             background-color: #7c3aed;
+        }
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
         .btn-secondary {
             background-color: #4a4b57;
@@ -87,6 +91,16 @@
 
     <div class="container mx-auto max-w-lg p-4 sm:p-6">
         
+        <!-- API Key Input Section -->
+        <div class="card p-4 rounded-xl mb-6">
+            <label for="api-key-input" class="block text-lg font-semibold text-center mb-2">Gemini API Key</label>
+            <input type="password" id="api-key-input" class="form-input w-full p-2 rounded-md text-sm" placeholder="Masukkan API Key Anda di sini">
+            <p class="text-xs text-gray-400 mt-2">
+                API Key Anda disimpan di browser Anda dan tidak akan dibagikan. Diperlukan untuk fitur AI.
+                <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-purple-400 hover:underline">Dapatkan API Key di sini.</a>
+            </p>
+        </div>
+
         <!-- Mode Adegan -->
         <div class="card p-4 rounded-xl mb-6">
             <h2 class="text-lg font-semibold text-center mb-3">Mode Adegan</h2>
@@ -191,9 +205,33 @@
             const geminiSurpriseBtn = document.getElementById('gemini-surprise-btn');
             const geminiSurpriseText = document.getElementById('gemini-surprise-text');
             const geminiSurpriseLoader = document.getElementById('gemini-surprise-loader');
+            const apiKeyInput = document.getElementById('api-key-input');
             const allInputs = [];
             let translationTimeout;
             let uploadedFiles = { action: null, setting: null };
+
+            // --- API Key Handling ---
+            function getApiKey() {
+                return localStorage.getItem('geminiApiKey') || '';
+            }
+
+            function saveApiKey(key) {
+                localStorage.setItem('geminiApiKey', key);
+                checkAiFeatures();
+            }
+            
+            apiKeyInput.value = getApiKey();
+            apiKeyInput.addEventListener('input', () => saveApiKey(apiKeyInput.value));
+
+            function checkAiFeatures() {
+                const hasKey = !!getApiKey();
+                const aiButtons = document.querySelectorAll('#gemini-surprise-btn, #gemini-btn-action, #gemini-btn-setting');
+                aiButtons.forEach(btn => {
+                    if(btn.id.includes('surprise') || uploadedFiles[btn.id.split('-')[2]]) {
+                        btn.disabled = !hasKey;
+                    }
+                });
+            }
 
             // Function to generate the final prompt text
             function updatePrompt() {
@@ -206,19 +244,20 @@
                 outputIdTextarea.value = promptInId;
 
                 clearTimeout(translationTimeout);
-                if (promptInId.trim()) {
+                if (promptInId.trim() && getApiKey()) {
                     translationTimeout = setTimeout(() => translateAndDisplay(promptInId), 500);
                 } else {
-                    outputEnTextarea.value = '';
+                    outputEnTextarea.value = getApiKey() ? '' : 'Masukkan API Key untuk menerjemahkan.';
                 }
             }
             
             // Translate and display
             async function translateAndDisplay(textToTranslate) {
+                const apiKey = getApiKey();
+                if (!apiKey) return;
                 outputEnTextarea.value = 'Menerjemahkan...';
                 const promptToGemini = `Translate the following Indonesian video prompt to English. Keep the structure intact. Text: "${textToTranslate}"`;
                  try {
-                    const apiKey = ""; 
                     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
                     const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: promptToGemini }] }] }) });
                     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -284,6 +323,11 @@
 
             // Generic Gemini Image Description Logic
             async function describeImageWithGemini(type) {
+                const apiKey = getApiKey();
+                if (!apiKey) {
+                    alert('Silakan masukkan Gemini API Key Anda terlebih dahulu.');
+                    return;
+                }
                 const file = uploadedFiles[type];
                 if (!file) return;
                 const button = document.getElementById(`gemini-btn-${type}`);
@@ -299,7 +343,7 @@
                         : "Describe the location or setting in this image in a concise phrase for a video prompt. Focus on the environment and atmosphere. Respond in Indonesian.";
                     const payload = { contents: [{ role: "user", parts: [{ text: promptToGemini }, { inlineData: { mimeType: file.type, data: base64Data } }] }] };
                     try {
-                        const apiKey = ""; const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+                        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
                         const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                         const result = await response.json();
@@ -311,7 +355,7 @@
                     } catch (error) { console.error(`Error calling Gemini for ${type}:`, error); alert(`Gagal menganalisis gambar.`);
                     } finally { 
                         button.innerHTML = originalHtml;
-                        // Do not re-enable the button here, let the user upload a new file
+                        button.disabled = false;
                     }
                 };
                 reader.readAsDataURL(file);
@@ -322,14 +366,14 @@
                 if (e.target.files && e.target.files[0]) {
                     uploadedFiles['action'] = e.target.files[0];
                     document.getElementById(`file-name-action`).textContent = `File: ${uploadedFiles['action'].name}`;
-                    document.getElementById(`gemini-btn-action`).disabled = false;
+                    checkAiFeatures();
                 }
             });
             document.getElementById(`image-upload-setting`).addEventListener('change', (e) => {
                  if (e.target.files && e.target.files[0]) {
                     uploadedFiles['setting'] = e.target.files[0];
                     document.getElementById(`file-name-setting`).textContent = `File: ${uploadedFiles['setting'].name}`;
-                    document.getElementById(`gemini-btn-setting`).disabled = false;
+                    checkAiFeatures();
                 }
             });
             document.getElementById(`gemini-btn-action`).addEventListener('click', () => describeImageWithGemini('action'));
@@ -337,11 +381,16 @@
             
             // Gemini Surprise Feature Logic
             geminiSurpriseBtn.addEventListener('click', async () => {
+                const apiKey = getApiKey();
+                if (!apiKey) {
+                    alert('Silakan masukkan Gemini API Key Anda terlebih dahulu.');
+                    return;
+                }
                 geminiSurpriseBtn.disabled = true; geminiSurpriseText.textContent = ''; geminiSurpriseLoader.classList.remove('hidden');
                 const promptToGemini = `You are a creative assistant for a text-to-video AI. Generate a complete, highly creative, visually stunning, and unexpected video prompt idea. Provide the output as a single JSON object with these exact keys: "action", "ekspresi", "setting", "waktu", "sudut_kamera", "gerakan_kamera", "pencahayaan", "style_video", "suasana", "backsound", "kalimat". All values must be in Indonesian.`;
                 const payload = { contents: [{ role: "user", parts: [{ text: promptToGemini }] }], generationConfig: { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { action: { type: "STRING" }, ekspresi: { type: "STRING" }, setting: { type: "STRING" }, waktu: { type: "STRING" }, sudut_kamera: { type: "STRING" }, gerakan_kamera: { type: "STRING" }, pencahayaan: { type: "STRING" }, style_video: { type: "STRING" }, suasana: { type: "STRING" }, backsound: { type: "STRING" }, kalimat: { type: "STRING" } } } } };
                 try {
-                    const apiKey = ""; const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
                     const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                     const result = await response.json();
@@ -353,6 +402,9 @@
                 } catch (error) { console.error("Error calling Gemini API:", error); alert("Gagal mendapatkan ide kejutan. Silakan coba lagi.");
                 } finally { geminiSurpriseBtn.disabled = false; geminiSurpriseText.textContent = 'Generate Pilihan'; geminiSurpriseLoader.classList.add('hidden'); }
             });
+
+            // Initial check for AI features
+            checkAiFeatures();
         });
     </script>
 
